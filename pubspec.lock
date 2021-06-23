@@ -15,19 +15,5 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.0.1"
-  path:
-    dependency: transitive
-    description:
-      name: path
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.8.0"
-  stack_trace:
-    dependency: "direct dev"
-    description:
-      name: stack_trace
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.10.0"
 sdks:
-  dart: ">=2.14.0-0 <3.0.0"
+  dart: ">=2.12.0 <3.0.0"
