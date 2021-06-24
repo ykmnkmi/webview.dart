@@ -2,4 +2,4 @@
 .packages
 build/
 *.dll
-packages.lock
+pubspec.lock

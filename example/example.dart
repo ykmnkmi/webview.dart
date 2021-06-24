@@ -1,11 +1,26 @@
 import 'package:webview/webview.dart';
 
+const String html = '''<!doctype html>
+<html>
+  <body>hello</body>
+  <script>
+    window.onload = function() {
+      document.body.innerText = `hello, \${navigator.userAgent}`;
+      noop().then(function(res) {
+        console.log('noop res', res);
+      });
+    };
+  </script>
+</html>''';
+
 void main(List<String> arguments) {
-  final webview = Webview();
-  print('window pointer: ${webview.windowRef.address}');
-  webview.resize(320, 240, WebviewHint.fixed);
-  webview.title = 'hello world!';
-  webview.navigate('data:text/html,%3Cp%3Ehello%2C%20world%21%3C%2Fp%3E');
-  webview.run();
-  webview.destroy();
+  Webview(debug: true)
+    ..title = 'Hello'
+    ..navigate(Uri.dataFromString(html, mimeType: 'text/html'))
+    ..run();
+}
+
+String hello() {
+  print('hello');
+  return 'hello';
 }

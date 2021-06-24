@@ -3,22 +3,22 @@ import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 
-typedef _CWCreate = Pointer<Void> Function(Int32 debug, Pointer<Void> window);
-typedef _DWCreate = Pointer<Void> Function(int debug, Pointer<Void> window);
+import 'events.dart';
+import 'types.dart';
 
-typedef _CWVGetWindow = Pointer<Void> Function(Pointer<Void> webview);
-typedef _DartWVGetWindow = Pointer<Void> Function(Pointer<Void> webview);
+typedef _CCreate = Pointer Function(Int32 debug, Pointer window);
 
-typedef _CWSetSize = Void Function(
-    Pointer<Void> webview, Int32 width, Int32 height, Int32 hint);
-typedef _DWSetSize = void Function(
-    Pointer<Void> webview, int width, int height, int hint);
+typedef _CGetWindow = Pointer Function(Pointer webview);
 
-typedef _CWVCb = Void Function(Pointer<Void> webview);
-typedef _DWVCb = void Function(Pointer<Void> webview);
+typedef _CSetSize = Void Function(
+    Pointer webview, Int32 width, Int32 height, Int32 hint);
 
-typedef _CWVStringCb = Void Function(Pointer<Void> webview, Pointer<Utf8> url);
-typedef _DWVStringCb = void Function(Pointer<Void> webview, Pointer<Utf8> url);
+typedef _CBind = Void Function(Pointer webview, Pointer<Utf8> name,
+    Pointer<NativeFunction<CBindCallback>> callback, Pointer arg);
+
+typedef _CCallback = Void Function(Pointer webview);
+
+typedef _CStringCallback = Void Function(Pointer webview, Pointer<Utf8> url);
 
 class WebviewBindings {
   factory WebviewBindings([String? path]) {
@@ -36,23 +36,40 @@ class WebviewBindings {
   }
 
   WebviewBindings.from(this.library)
-      : create = library.lookupFunction<_CWCreate, _DWCreate>('webview_create'),
-        destroy = library.lookupFunction<_CWVCb, _DWVCb>('webview_destroy'),
-        run = library.lookupFunction<_CWVCb, _DWVCb>('webview_run'),
-        terminate = library.lookupFunction<_CWVCb, _DWVCb>('webview_terminate'),
-        getWindow = library.lookupFunction<_CWVGetWindow, _DartWVGetWindow>(
-            'webview_get_window'),
+      : create = library
+            .lookup<NativeFunction<_CCreate>>('webview_create')
+            .asFunction(),
+        destroy = library
+            .lookup<NativeFunction<_CCallback>>('webview_destroy')
+            .asFunction(),
+        run = library
+            .lookup<NativeFunction<_CCallback>>('webview_run')
+            .asFunction(),
+        terminate = library
+            .lookup<NativeFunction<_CCallback>>('webview_terminate')
+            .asFunction(),
+        getWindow = library
+            .lookup<NativeFunction<_CGetWindow>>('webview_get_window')
+            .asFunction(),
         setTitle = library
-            .lookupFunction<_CWVStringCb, _DWVStringCb>('webview_set_title'),
-        setSize =
-            library.lookupFunction<_CWSetSize, _DWSetSize>('webview_set_size'),
+            .lookup<NativeFunction<_CStringCallback>>('webview_set_title')
+            .asFunction(),
+        setSize = library
+            .lookup<NativeFunction<_CSetSize>>('webview_set_size')
+            .asFunction(),
         navigate = library
-            .lookupFunction<_CWVStringCb, _DWVStringCb>('webview_navigate'),
-        init =
-            library.lookupFunction<_CWVStringCb, _DWVStringCb>('webview_init'),
-        eval =
-            library.lookupFunction<_CWVStringCb, _DWVStringCb>('webview_eval');
+            .lookup<NativeFunction<_CStringCallback>>('webview_navigate')
+            .asFunction(),
+        init = library
+            .lookup<NativeFunction<_CStringCallback>>('webview_init')
+            .asFunction(),
+        eval = library
+            .lookup<NativeFunction<_CStringCallback>>('webview_eval')
+            .asFunction(),
+        bind =
+            library.lookup<NativeFunction<_CBind>>('webview_bind').asFunction();
 
+  /// Native library link.
   final DynamicLibrary library;
 
   /// Creates a new native webview instance.
@@ -62,28 +79,28 @@ class WebviewBindings {
   /// window handle. If it's non-null - then child WebView is embedded into
   /// the given parent window. Otherwise a new window is created. Depending on
   /// the platform, a GtkWindow, NSWindow or HWND pointer can be passed here.
-  final _DWCreate create;
+  final Pointer Function(int debug, Pointer window) create;
 
   /// Destroys a webview and closes the native window.
-  final _DWVCb destroy;
+  final void Function(Pointer webview) destroy;
 
   /// Runs the main loop until it's terminated.
   ///
   /// After this function exits - you must destroy the webview.
-  final _DWVCb run;
+  final void Function(Pointer webview) run;
 
   /// Stops the main loop.
-  final _DWVCb terminate;
+  final void Function(Pointer webview) terminate;
 
   /// Returns a native window handle pointer.
   ///
   /// When using GTK backend the pointer is GtkWindow pointer, when using
   /// Cocoa backend the pointer is NSWindow pointer, when using Win32 backend
   /// the pointer is HWND pointer.
-  final _DartWVGetWindow getWindow;
+  final Pointer Function(Pointer webview) getWindow;
 
   /// Updates the title of the native window.
-  final _DWVStringCb setTitle;
+  final void Function(Pointer webview, Pointer<Utf8> url) setTitle;
 
   /// Updates native window size.
   ///
@@ -91,18 +108,37 @@ class WebviewBindings {
   /// 1 - width and height are minimum bounds,
   /// 2 - width and height are maximum bounds,
   /// 3 - window size can not be changed by a user.
-  final _DWSetSize setSize;
+  final void Function(Pointer webview, int width, int height, int hint) setSize;
 
   /// Navigates webview to the given URL.
   ///
   /// URL may be a data URI, i.e. "data:text/text,<html>...</html>".
   /// It is often ok not to url-encode it properly,
   /// webview will re-encode it for you.
-  final _DWVStringCb navigate;
+  final void Function(Pointer webview, Pointer<Utf8> url) navigate;
 
-  final _DWVStringCb init;
+  /// Injects JavaScript code at the initialization of the new page.
+  ///
+  /// Every time the webview will open a the new page - this initialization
+  /// code will be executed. It is guaranteed that code is executed before
+  /// `window.onload`.
+  final void Function(Pointer webview, Pointer<Utf8> js) init;
 
-  final _DWVStringCb eval;
+  /// Evaluates arbitrary JavaScript code.
+  ///
+  /// Evaluation happens asynchronously, also the result of the expression is
+  /// ignored. Use RPC bindings if you want to receive notifications about
+  /// the results of the evaluation.
+  final void Function(Pointer webview, Pointer<Utf8> js) eval;
+
+  /// Binds a native C callback so that it will appear under the given name as a
+  /// global JavaScript function.
+  ///
+  /// Internally it uses webview_init(). Callback receives a request string
+  /// and a user-provided argument pointer. Request string is a JSON array of
+  /// all the arguments passed to the JavaScript function.
+  final void Function(Pointer webview, Pointer<Utf8> name,
+      Pointer<NativeFunction<CBindCallback>> callback, Pointer arg) bind;
 }
 
 /// Window size hints.
@@ -125,7 +161,7 @@ class Webview {
   ///
   /// If `debug` is non-zero - developer tools will be enabled (if the
   /// platform supports them).
-  Webview({bool debug = false, String? libraryPath, Pointer<Void>? window})
+  Webview({bool debug = false, String? libraryPath, Pointer? window})
       : library = WebviewBindings(libraryPath) {
     webviewRef = library.create(debug ? 1 : 0, window ?? nullptr);
   }
@@ -137,20 +173,20 @@ class Webview {
   /// window handle. If it's non-null - then child WebView is embedded into
   /// the given parent window. Otherwise a new window is created. Depending on
   /// the platform, a GtkWindow, NSWindow or HWND pointer can be passed here.
-  Webview.fromLibrary(this.library, {bool debug = false, Pointer<Void>? window})
+  Webview.fromLibrary(this.library, {bool debug = false, Pointer? window})
       : webviewRef = library.create(debug ? 1 : 0, window ?? nullptr);
 
   final WebviewBindings library;
 
   /// Pointer to native webview instance.
-  late final Pointer<Void> webviewRef;
+  late final Pointer webviewRef;
 
   /// Returns a native window handle pointer.
   ///
   /// When using GTK backend the pointer is GtkWindow pointer, when using
   /// Cocoa backend the pointer is NSWindow pointer, when using Win32 backend
   /// the pointer is HWND pointer.
-  Pointer<Void> get windowRef {
+  Pointer get windowRef {
     return library.getWindow(webviewRef);
   }
 
@@ -188,21 +224,43 @@ class Webview {
   /// URL may be a data URI, i.e. "data:text/text,<html>...</html>".
   /// It is often ok not to url-encode it properly,
   /// webview will re-encode it for you.
-  void navigate(String url) {
-    final urlRef = url.toNativeUtf8();
+  void navigate(Uri url) {
+    final urlRef = url.toString().toNativeUtf8();
     library.navigate(webviewRef, urlRef);
     calloc.free(urlRef);
   }
 
-  void init(String url) {
-    final urlRef = url.toNativeUtf8();
-    library.init(webviewRef, urlRef);
-    calloc.free(urlRef);
+  /// Injects JavaScript code at the initialization of the new page.
+  ///
+  /// Every time the webview will open a the new page - this initialization
+  /// code will be executed. It is guaranteed that code is executed before
+  /// `window.onload`.
+  void init(String js) {
+    final jsRef = js.toNativeUtf8();
+    library.init(webviewRef, jsRef);
+    calloc.free(jsRef);
   }
 
-  void eval(String url) {
-    final urlRef = url.toNativeUtf8();
-    library.eval(webviewRef, urlRef);
-    calloc.free(urlRef);
+  /// Evaluates arbitrary JavaScript code.
+  ///
+  /// Evaluation happens asynchronously, also the result of the expression is
+  /// ignored. Use RPC bindings if you want to receive notifications about
+  /// the results of the evaluation.
+  void eval(String js) {
+    final jsRef = js.toNativeUtf8();
+    library.eval(webviewRef, jsRef);
+    calloc.free(jsRef);
+  }
+
+  /// Binds a native C callback so that it will appear under the given name as a
+  /// global JavaScript function.
+  ///
+  /// Internally it uses webview_init(). Callback receives a request string
+  /// and a user-provided argument pointer. Request string is a JSON array of
+  /// all the arguments passed to the JavaScript function.
+  void bind(String name, Function callback) {
+    final nameRef = name.toNativeUtf8();
+    library.bind(windowRef, nameRef, listenerRef, nullptr);
+    calloc.free(nameRef);
   }
 }

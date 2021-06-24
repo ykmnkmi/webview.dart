@@ -1,6 +1,6 @@
 name: webview
 description: Dart bindings for webview, a tiny library for creating web-based desktop GUIs.
-version: 1.0.0-dev.1
+version: 1.0.0-dev.2
 # homepage: https://www.example.com
 
 environment:
