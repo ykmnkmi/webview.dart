@@ -8,66 +8,63 @@ import 'types.dart';
 
 typedef _CCreate = Pointer Function(Int32 debug, Pointer window);
 
+typedef _DartCreate = Pointer Function(int, Pointer);
+
 typedef _CGetWindow = Pointer Function(Pointer webview);
 
-typedef _CSetSize = Void Function(
-    Pointer webview, Int32 width, Int32 height, Int32 hint);
+typedef _DartGetWindow = Pointer Function(Pointer);
 
-typedef _CBind = Void Function(Pointer webview, Pointer<Utf8> name,
-    Pointer<NativeFunction<CBindCallback>> callback, Pointer arg);
+typedef _CSetSize = Void Function(Pointer webview, Int32 width, Int32 height, Int32 hint);
+
+typedef _DartSetSize = void Function(Pointer, int, int, int);
+
+typedef _CBind = Void Function(Pointer webview, Pointer<Utf8> name, Pointer callback, Pointer arg);
+
+typedef _DartBind = void Function(Pointer, Pointer<Utf8>, CBindCallbackPointer, Pointer);
 
 typedef _CCallback = Void Function(Pointer webview);
 
+typedef _DartCallback = void Function(Pointer);
+
 typedef _CStringCallback = Void Function(Pointer webview, Pointer<Utf8> url);
 
+typedef _DartStringCallback = void Function(Pointer, Pointer<Utf8>);
+
 class WebviewBindings {
+  static WebviewBindings? instance;
+
   factory WebviewBindings([String? path]) {
-    if (path == null) {
-      switch (Platform.operatingSystem) {
-        case 'windows':
-          path = 'webview.dll';
-          break;
-        default:
-          throw UnsupportedError(Platform.operatingSystem);
+    var binding = instance;
+
+    if (binding == null) {
+      if (path == null) {
+        switch (Platform.operatingSystem) {
+          case 'windows':
+            path = 'webview.dll';
+            break;
+          default:
+            throw UnsupportedError(Platform.operatingSystem);
+        }
       }
+
+      binding = instance = WebviewBindings.from(DynamicLibrary.open(path));
     }
 
-    return WebviewBindings.from(DynamicLibrary.open(path));
+    return binding;
   }
 
   WebviewBindings.from(this.library)
-      : create = library
-            .lookup<NativeFunction<_CCreate>>('webview_create')
-            .asFunction(),
-        destroy = library
-            .lookup<NativeFunction<_CCallback>>('webview_destroy')
-            .asFunction(),
-        run = library
-            .lookup<NativeFunction<_CCallback>>('webview_run')
-            .asFunction(),
-        terminate = library
-            .lookup<NativeFunction<_CCallback>>('webview_terminate')
-            .asFunction(),
-        getWindow = library
-            .lookup<NativeFunction<_CGetWindow>>('webview_get_window')
-            .asFunction(),
-        setTitle = library
-            .lookup<NativeFunction<_CStringCallback>>('webview_set_title')
-            .asFunction(),
-        setSize = library
-            .lookup<NativeFunction<_CSetSize>>('webview_set_size')
-            .asFunction(),
-        navigate = library
-            .lookup<NativeFunction<_CStringCallback>>('webview_navigate')
-            .asFunction(),
-        init = library
-            .lookup<NativeFunction<_CStringCallback>>('webview_init')
-            .asFunction(),
-        eval = library
-            .lookup<NativeFunction<_CStringCallback>>('webview_eval')
-            .asFunction(),
-        bind =
-            library.lookup<NativeFunction<_CBind>>('webview_bind').asFunction();
+      : create = library.lookupFunction<_CCreate, _DartCreate>('webview_create'),
+        destroy = library.lookupFunction<_CCallback, _DartCallback>('webview_destroy'),
+        run = library.lookupFunction<_CCallback, _DartCallback>('webview_run'),
+        terminate = library.lookupFunction<_CCallback, _DartCallback>('webview_terminate'),
+        getWindow = library.lookupFunction<_CGetWindow, _DartGetWindow>('webview_get_window'),
+        setTitle = library.lookupFunction<_CStringCallback, _DartStringCallback>('webview_set_title'),
+        setSize = library.lookupFunction<_CSetSize, _DartSetSize>('webview_set_size'),
+        navigate = library.lookupFunction<_CStringCallback, _DartStringCallback>('webview_navigate'),
+        init = library.lookupFunction<_CStringCallback, _DartStringCallback>('webview_init'),
+        eval = library.lookupFunction<_CStringCallback, _DartStringCallback>('webview_eval'),
+        bind = library.lookupFunction<_CBind, _DartBind>('webview_bind');
 
   /// Native library link.
   final DynamicLibrary library;
@@ -104,6 +101,7 @@ class WebviewBindings {
 
   /// Updates native window size.
   ///
+  /// Hints:
   /// 0 - width and height are default size,
   /// 1 - width and height are minimum bounds,
   /// 2 - width and height are maximum bounds,
@@ -137,8 +135,8 @@ class WebviewBindings {
   /// Internally it uses webview_init(). Callback receives a request string
   /// and a user-provided argument pointer. Request string is a JSON array of
   /// all the arguments passed to the JavaScript function.
-  final void Function(Pointer webview, Pointer<Utf8> name,
-      Pointer<NativeFunction<CBindCallback>> callback, Pointer arg) bind;
+  final void Function(Pointer webview, Pointer<Utf8> name, Pointer<NativeFunction<CBindCallback>> callback, Pointer arg)
+      bind;
 }
 
 /// Window size hints.
@@ -161,8 +159,7 @@ class Webview {
   ///
   /// If `debug` is non-zero - developer tools will be enabled (if the
   /// platform supports them).
-  Webview({bool debug = false, String? libraryPath, Pointer? window})
-      : library = WebviewBindings(libraryPath) {
+  Webview({bool debug = false, String? libraryPath, Pointer? window}) : library = WebviewBindings(libraryPath) {
     webviewRef = library.create(debug ? 1 : 0, window ?? nullptr);
   }
 

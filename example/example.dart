@@ -16,11 +16,7 @@ const String html = '''<!doctype html>
 void main(List<String> arguments) {
   Webview(debug: true)
     ..title = 'Hello'
-    ..navigate(Uri.dataFromString(html, mimeType: 'text/html'))
-    ..run();
-}
-
-String hello() {
-  print('hello');
-  return 'hello';
+    ..navigate(Uri.dataFromString(html, mimeType: 'text/html; charset=utf-8'))
+    ..run()
+    ..destroy();
 }
